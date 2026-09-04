@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node / frontend
+node_modules/
+frontend/dist/
+
+# Donnees generees (regenerees via generate_data.py, inutile de les versionner)
+data/raw/*.csv
+
+# Modeles ML entraines : gros fichiers binaires, se regenerent via
+# train_churn_model.py -- ne pas polluer l'historique Git avec.
+ml/models/*.joblib
+
+# Secrets (si un jour vous utilisez un fichier .env)
+.env
+
+# Docker
+*.log

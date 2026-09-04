@@ -1,0 +1,63 @@
+services:
+  db:
+    image: postgres:16
+    container_name: ecommerce_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ecommerce_user
+      POSTGRES_PASSWORD: ecommerce_pass
+      POSTGRES_DB: ecommerce
+    ports:
+      - "5455:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./sql:/docker-entrypoint-initdb.d
+    healthcheck:
+      # Un healthcheck verifie que Postgres est VRAIMENT pret a
+      # accepter des connexions, pas juste que le conteneur a
+      # demarre. Sans ca, "depends_on" garantirait seulement l'ORDRE
+      # de demarrage, pas que la base soit utilisable -- le backend
+      # pourrait crasher en essayant de se connecter trop tot.
+      test: ["CMD-SHELL", "pg_isready -U ecommerce_user -d ecommerce"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      # context: "." (la racine du projet) et pas "./backend" -- le
+      # Dockerfile a besoin de copier ml/models/churn_model.joblib,
+      # qui se trouve HORS du dossier backend/. Docker ne peut
+      # acceder qu'aux fichiers a l'interieur du contexte de build ;
+      # il faut donc elargir ce contexte a la racine pour que le
+      # modele ML soit visible pendant le build.
+    container_name: ecommerce_backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg://ecommerce_user:ecommerce_pass@db:5432/ecommerce
+      # host = "db", pas "localhost" : dans le reseau interne cree
+      # par Docker Compose, chaque service est joignable par son NOM
+      # (celui declare ci-dessus, "db") plutot que par localhost.
+      CHURN_MODEL_PATH: ml_models/churn_model.joblib
+      JWT_SECRET_KEY: change-this-in-production
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+        # Le backend attend que le healthcheck de "db" passe au vert
+        # avant de demarrer -- pas juste que le conteneur existe.
+
+  frontend:
+    build: ./frontend
+    container_name: ecommerce_frontend
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
