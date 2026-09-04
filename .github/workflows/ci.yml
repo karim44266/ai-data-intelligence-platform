@@ -56,9 +56,16 @@ jobs:
         # versionne pas sur GitHub (voir .gitignore). Un smoke test
         # sur les endpoints de base suffit a attraper les erreurs
         # d'import ou de configuration les plus courantes.
+        #
+        # httpx2 : le TestClient de FastAPI en a besoin depuis une
+        # version recente de starlette. On l'installe ici, pas dans
+        # backend/requirements.txt, car il ne sert qu'aux TESTS --
+        # l'ajouter aux dependances de l'application alourdirait
+        # l'image Docker de production pour rien.
         env:
           DATABASE_URL: postgresql+psycopg://ecommerce_user:ecommerce_pass@localhost:5432/ecommerce
         run: |
+          pip install httpx2
           cd backend/app
           python -c "
           from fastapi.testclient import TestClient
